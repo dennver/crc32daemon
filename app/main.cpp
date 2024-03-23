@@ -28,7 +28,8 @@ int main(int argc, char *argv[])
     {
         {"directory", optional_argument, 0, 'd'},
         {"version",   no_argument,       0, 'v'},
-        {0, 0, 0, 0}                           };
+        {0, 0, 0, 0}                           
+    };
 
     while ((opt = getopt_long(argc, argv, "d:v", long_options, &index)) != -1) {
         switch(opt) {
@@ -44,14 +45,6 @@ int main(int argc, char *argv[])
             return 0;
         case 0: // long option without a short arg
             break;
-        case '?':
-            if (optopt == 'd')
-                std::cout << "Option -" << optopt << " requires an argument." << std::endl;
-            else if (isprint(optopt))
-                std::cout << "Unknown option `-" << optopt << "'.\n" << std::endl;
-            else
-                std::cout << "Unknown option character `" << optopt << "'." << std::endl;
-            return 1;
         default:
             std::cout << "Incorrect prompt parameters";
             return 1;
