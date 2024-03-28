@@ -8,5 +8,6 @@ FetchContent_Declare(
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
-add_executable(t tmain.cpp test.cpp ../app/params_parser.cpp)
+find_package(ZLIB REQUIRED)
+target_link_libraries(t PRIVATE gtest ZLIB::ZLIB)
 add_test(NAME t COMMAND t)
