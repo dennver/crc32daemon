@@ -13,11 +13,11 @@ namespace Worker
         return stream.str();
     }
 
-    ChecksumWorker::ChecksumWorker() : logger(GetLogger()) {}
+    ChecksumWorker::ChecksumWorker(unsigned int threads, unsigned int chSize) : numOfThreads(threads), chunkSize(chSize), logger(GetLogger()) {}
 
     void ChecksumWorker::HandleEvent(Queue::Event e)
     {
-        uint32_t crc = calculateCRC32Parallel(e.fileName, 8192, 50);
+        uint32_t crc = calculateCRC32Parallel(e.fileName, chunkSize, numOfThreads);
         if (auto search = fileMap.find(e.fileName); search != fileMap.end() && !e.firstEvent)
         {
             FileIntegrity& fi = fileMap[e.fileName];

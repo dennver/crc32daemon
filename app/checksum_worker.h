@@ -18,13 +18,15 @@ namespace Worker
             std::string status; //"status " : "OK"
         };
     public:
-        ChecksumWorker();
+        ChecksumWorker(unsigned int threads, unsigned int chSize);
         ~ChecksumWorker() {}
 
         void HandleEvent(Queue::Event e) override;
         void DumpEvents() override;
 
     private:
+        unsigned int numOfThreads;
+        unsigned int chunkSize;
         std::shared_ptr<SyslogWriter> logger;
         std::shared_ptr<Queue::EventQueue> queue;
         std::map<std::string, FileIntegrity> fileMap;

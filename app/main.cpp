@@ -100,7 +100,9 @@ int main(int argc, char *argv[]) {
     std::signal(SIGSTOP, SIG_IGN);
     std::signal(SIGCONT, SIG_IGN);
 
-    std::shared_ptr<Queue::EventQueue> queue = std::make_shared<Queue::EventQueue>(std::make_unique<Worker::ChecksumWorker>());
+    const unsigned int numberOfThreads = 50;
+    const unsigned int chunkSize = 8192;
+    std::shared_ptr<Queue::EventQueue> queue = std::make_shared<Queue::EventQueue>(std::make_unique<Worker::ChecksumWorker>(numberOfThreads, chunkSize));
     INotifier::INotifyHandler notifyhandler(directory, queue);
     try
     {
