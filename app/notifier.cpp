@@ -6,6 +6,22 @@
 
 namespace INotifier
 {
+    Queue::EventType maskToType(uint32_t mask)
+    {
+        switch (mask)
+        {
+        case IN_MODIFY:
+            return Queue::EventType::MODIFIED;
+        case IN_CREATE:
+            return Queue::EventType::CREATED;
+        case IN_DELETE:
+            return Queue::EventType::DELETED;
+        default:
+            break;
+        }
+        return Queue::EventType::UNKNOWN;
+    }
+
     INotifyHandler::INotifyHandler(const std::string& folderPath, std::shared_ptr<Queue::EventQueue> queuePtr) : queue(queuePtr), dirPath(folderPath) {}
 
     INotifyHandler::~INotifyHandler()
@@ -73,6 +89,7 @@ namespace INotifier
                     
                     if (event->mask & (IN_MODIFY | IN_CREATE | IN_DELETE)) {
                         Queue::Event e;
+                        e.type = maskToType(event->mask);
                         e.fileName = dirPath + event->name;
                         queue->AddEvent(e);
                     }

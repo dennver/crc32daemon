@@ -17,12 +17,20 @@ namespace Worker
 
     void ChecksumWorker::HandleEvent(Queue::Event e)
     {
-        uint32_t crc = calculateCRC32Parallel(e.fileName, chunkSize, numOfThreads);
+        uint32_t crc;
+        const bool fileDeleted = e.type == Queue::EventType::DELETED;
+        if (!fileDeleted)
+            crc = calculateCRC32Parallel(e.fileName, chunkSize, numOfThreads);
         if (auto search = fileMap.find(e.fileName); search != fileMap.end() && !e.firstEvent)
         {
             FileIntegrity& fi = fileMap[e.fileName];
-            fi.result_crc32 = crc;
-            fi.status = fi.etalon_crc32 == fi.result_crc32 ? "OK" : "FAIL";
+            fi.result_crc32 = crc;            
+            if (fileDeleted)
+                fi.status = "ABSENT";
+            else if (fi.etalon_crc32 != fi.result_crc32)
+                fi.status = "FAIL";
+            else
+                fi.status = "OK";
 
             std::string message;
             if (fi.result_crc32 == fi.etalon_crc32)
@@ -31,7 +39,6 @@ namespace Worker
                 message = std::string("FAIL ") + toHex(fi.etalon_crc32) + " - " + toHex(fi.result_crc32);
 
             logger->writeLog("Integrity check: " + fi.status);
-            logger->writeLog(toHex(crc));
         }
         else
         {

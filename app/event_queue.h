@@ -16,12 +16,13 @@ namespace Queue
     private:
         // std::atomic_notify_all
     };
-
+    enum EventType {CREATED, MODIFIED, DELETED, UNKNOWN};
     struct Event
     {
         int dataSize;
         char* data;
         std::string fileName;
+        EventType type;
         bool firstEvent;
     };
 
