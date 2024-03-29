@@ -1,6 +1,7 @@
 #include <chrono>
 #include <csignal>
 #include <signal.h>
+#include <functional>
 #include <sys/stat.h>
 #include <thread>
 
@@ -19,16 +20,10 @@ void termHandler(int signal)
     do_shutdown = signal;
 }
 
-void signalHandler(int signal) {
-    switch(signal) {
-        case SIGHUP:
-            // Handle SIGHUP signal
-            break;
-        case SIGTERM:
-            // Handle SIGTERM signal
-            exit(0);
-            break;
-    }
+std::function<void()> recalculateWrapper;
+void recalculateHandler(int value)
+{
+    recalculateWrapper();
 }
 
 int daemonize() {
@@ -98,7 +93,7 @@ int main(int argc, char *argv[]) {
 
     // Set signal handlers
     std::signal(SIGTERM, termHandler);
-       return -1;
+    std::signal(SIGUSR1, recalculateHandler);
     std::signal(SIGQUIT, SIG_IGN);
     std::signal(SIGINT, SIG_IGN);
     std::signal(SIGHUP, SIG_IGN);
@@ -118,6 +113,8 @@ int main(int argc, char *argv[]) {
     }
 
     Timeout::TimeoutWorker timeoutWorker(timeout, directory, queue);
+    recalculateWrapper = std::bind(std::mem_fn(&Timeout::TimeoutWorker::DoWork), &timeoutWorker, false);
+
     std::vector<std::thread> threads;
     threads.emplace_back(std::thread(&Queue::EventQueue::Start, queue));
     threads.emplace_back(std::thread(&INotifier::INotifyHandler::Start, &notifyhandler));

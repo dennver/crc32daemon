@@ -12,6 +12,7 @@ namespace Timeout
           : timeout(t), traverser(path), queue(queuePtr) {}
         void Start() override;
         void Stop() override;
+        void DoWork(bool flag);
         
     private:
         uint32_t timeout;
