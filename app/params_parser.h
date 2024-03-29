@@ -53,6 +53,8 @@ namespace CommandLine
                 return str == "true";
             if constexpr (std::is_same_v<T, std::string>)
                 return str;
+            if constexpr (std::is_same_v<T, unsigned int>)
+                return std::stoul(str);
             throw std::invalid_argument("Invalid option type - " + str);
         }
     };
