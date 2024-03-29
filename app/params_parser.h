@@ -30,19 +30,19 @@ namespace CommandLine
 
         template<typename T>
         T GetValue(const std::string& option) const {
-            if (m_values.find(option) != m_values.end()) {
-                return Convert<T>(m_values.at(option));
+            if (values.find(option) != values.end()) {
+                return Convert<T>(values.at(option));
             } else {
                 // Handle missing argument
                 throw std::invalid_argument("Missing argument for option - " + option);
             }
         }
-        size_t GetOptionsCount() const { return m_options.size(); }
-        size_t GetValuesCount() const { return m_values.size(); }
+        size_t GetOptionsCount() const { return options.size(); }
+        size_t GetValuesCount() const { return values.size(); }
 
     private:
-        std::unordered_map<std::string, Option> m_options;
-        std::unordered_map<std::string, std::string> m_values;
+        std::unordered_map<std::string, Option> options;
+        std::unordered_map<std::string, std::string> values;
 
         template<typename T>
         T Convert(const std::string& str) const {

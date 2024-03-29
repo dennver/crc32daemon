@@ -8,7 +8,7 @@ if __name__ == "__main__":
     # Start the process
     # fix the path to app
     print(os.getcwd())
-    process = subprocess.Popen(['../build/app/crc32daemon', '--directory', './', '--timeout', '10000'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(['../build/app/crc32daemon', '-directory', './', '-timeout', '10000'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     time.sleep(3)
     # Get the PID of the forked process
     child_pid = None

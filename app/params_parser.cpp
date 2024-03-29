@@ -1,4 +1,4 @@
-#include <string>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 
@@ -17,45 +17,33 @@ std::string GetShortOpts(int len, const std::vector<option>& options)
 
 namespace CommandLine
 {
-    CommandLineArgsParser::CommandLineArgsParser(const std::unordered_map<std::string, Option>& options) : m_options(options) {}
+    CommandLineArgsParser::CommandLineArgsParser(const std::unordered_map<std::string, Option>& options) : options(options) {}
 
     void CommandLineArgsParser::Parse(int argc, const char *argv[])
     {
-        m_values.clear();
-        for (int i = 1; i < argc; i++)
+        values.clear();
+        std::vector<std::string> argVec(argv+1, argv + argc);
+
+        for (auto it = options.cbegin(); it != options.cend(); ++it)
         {
-            std::string arg = argv[i];
-            const auto it = m_options.find(arg);
-            if (it != m_options.end())
+            std::string option = it->first;
+            if (auto argIt = std::find(argVec.begin(), argVec.end(), "-" + option); argIt != argVec.end())
             {
-                if (it->second.type != ValueType::NOVAL)
-                {
-                    if (i + 1 < argc && argv[i + 1][0] != '-')
-                    {
-                        m_values[arg] = argv[i + 1];
-                        i++;
-                    }
+                auto nx = std::next(argIt, 1);
+                if (it->second.type != CommandLine::CommandLineArgsParser::ValueType::NOVAL)
+                    if (nx != argVec.end() && nx->at(0) != '-')
+                        values[option] = *nx;
                     else
-                    {
-                        // Check if default value provided in environment
-                        // If no argument provided in argv, take argument from environment
-                        // For example: export MY_INT=42; export MY_BOOL=true; export MY_STRING=hello
-                         std::cout << "Error: Argument not provided for option -" << arg << std::endl;
-                        const char* envVal = std::getenv(arg.c_str());
-                         std::cout << "Error: Argument not provided for option -" << std::string(envVal) << std::endl;
-                        // if (envVal)
-                            m_values[arg] = std::string(envVal);
-                        // else
-                        // {
-                        //     std::cerr << "Error: Argument not provided for option -" << arg << std::endl;
-                        //     throw std::invalid_argument("Missing argument for option -" + arg);
-                        // }
-                        
-                    }
-                }
+                       throw std::invalid_argument("Missing argument for option -" + option);
             }
             else
-                std::cerr << "Error: Unknown option -" << arg << std::endl;
+            {
+                const char* envVal = std::getenv(option.c_str());
+                if (envVal)
+                    values[option] = std::string(envVal);
+                else
+                    throw std::invalid_argument("Missing argument for option -" + option);
+            }
         }
     }
 }

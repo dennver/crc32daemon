@@ -18,52 +18,52 @@ TEST(CmdLineParser, shortOpts)
 TEST(CmdLineParser, Parse)
 {
     using namespace CommandLine;
-    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::INT};//, "10"};
-    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};//, "false"};
-    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};//, "default"};
+    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::INT};
+    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};
+    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};
     std::unordered_map<std::string, CommandLine::CommandLineArgsParser::Option> options{
-        {"--int", opt1},
-        {"--bool", opt2},
-        {"--string", opt3}
+        {"int", opt1},
+        {"bool", opt2},
+        {"string", opt3}
     };
 
-    const char* argv[]={"app", "--int", "5", "--bool", "true", "--string", "default"};
+    const char* argv[]={"app", "-int", "5", "-bool", "true", "-string", "default"};
     const int argc = sizeof(argv)/sizeof(char*);;
     CommandLineArgsParser parser(options);
     ASSERT_EQ(parser.GetOptionsCount(), 3);
 
     parser.Parse(argc, argv);
     ASSERT_EQ(parser.GetValuesCount(), 3);
-    int i = parser.GetValue<int>("--int");
+    int i = parser.GetValue<int>("int");
     EXPECT_EQ(i, 5);
-    bool b = parser.GetValue<bool>("--bool");
+    bool b = parser.GetValue<bool>("bool");
     EXPECT_EQ(b, true);
-    std::string s = parser.GetValue<std::string>("--string");
+    std::string s = parser.GetValue<std::string>("string");
     EXPECT_EQ(s, "default");
 }
 
 TEST(CmdLineParser, ParseNoVal)
 {
     using namespace CommandLine;
-    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::NOVAL};//, "10"};
-    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};//, "false"};
-    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};//, "default"};
+    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::NOVAL};
+    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};
+    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};
     std::unordered_map<std::string, CommandLine::CommandLineArgsParser::Option> options{
-        {"--flag", opt1},
-        {"--bool", opt2},
-        {"--string", opt3}
+        {"flag", opt1},
+        {"bool", opt2},
+        {"string", opt3}
     };
 
-    const char* argv[]={"app", "--flag", "--bool", "true", "--string", "default"};
+    const char* argv[]={"app", "-flag", "-bool", "true", "-string", "default"};
     const int argc = sizeof(argv)/sizeof(char*);
     CommandLineArgsParser parser(options);
     ASSERT_EQ(parser.GetOptionsCount(), 3);
 
     parser.Parse(argc, argv);
     ASSERT_EQ(parser.GetValuesCount(), 2);
-    bool b = parser.GetValue<bool>("--bool");
+    bool b = parser.GetValue<bool>("bool");
     EXPECT_EQ(b, true);
-    std::string s = parser.GetValue<std::string>("--string");
+    std::string s = parser.GetValue<std::string>("string");
     EXPECT_EQ(s, "default");
 
 }
@@ -71,17 +71,17 @@ TEST(CmdLineParser, ParseNoVal)
 TEST(CmdLineParser, ParseEnvVar)
 {
     using namespace CommandLine;
-    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::INT};//, "10"};
-    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};//, "false"};
-    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};//, "default"};
+    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::INT};
+    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};
+    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};
     std::unordered_map<std::string, CommandLine::CommandLineArgsParser::Option> options{
-        {"--int", opt1},
-        {"--bool", opt2},
+        {"int", opt1},
+        {"bool", opt2},
         {"STRING", opt3}
     };
     ASSERT_TRUE(!setenv("STRING", "default", 1));
 
-    const char* argv[]={"app", "--int", "5", "--bool", "true", "STRING"};
+    const char* argv[]={"app", "-int", "5", "-bool", "true"};
     const int argc = sizeof(argv)/sizeof(char*);
     CommandLineArgsParser parser(options);
     EXPECT_EQ(parser.GetOptionsCount(), 3);
@@ -90,11 +90,44 @@ TEST(CmdLineParser, ParseEnvVar)
     ASSERT_TRUE(!unsetenv("STRING"));
 
     ASSERT_EQ(parser.GetValuesCount(), 3);
-    int i = parser.GetValue<int>("--int");
+    int i = parser.GetValue<int>("int");
     EXPECT_EQ(i, 5);
-    bool b = parser.GetValue<bool>("--bool");
+    bool b = parser.GetValue<bool>("bool");
     EXPECT_EQ(b, true);
     std::string s = parser.GetValue<std::string>("STRING");
     EXPECT_EQ(s, "default");
+}
 
+TEST(CmdLineParser, ParseOnlyEnvVar)
+{
+    using namespace CommandLine;
+    CommandLineArgsParser::Option opt1{CommandLineArgsParser::ValueType::INT};
+    CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::BOOL};
+    CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::STRING};
+    std::unordered_map<std::string, CommandLine::CommandLineArgsParser::Option> options{
+        {"int", opt1},
+        {"bool", opt2},
+        {"STRING", opt3}
+    };
+    ASSERT_TRUE(!setenv("STRING", "default", 1));
+    ASSERT_TRUE(!setenv("bool", "false", 1));
+    ASSERT_TRUE(!setenv("int", "5", 1));
+
+    const char* argv[]={"app"};
+    const int argc = sizeof(argv)/sizeof(char*);
+    CommandLineArgsParser parser(options);
+    EXPECT_EQ(parser.GetOptionsCount(), 3);
+
+    parser.Parse(argc, argv);
+    ASSERT_TRUE(!unsetenv("STRING"));
+    ASSERT_TRUE(!unsetenv("bool"));
+    ASSERT_TRUE(!unsetenv("int"));
+
+    ASSERT_EQ(parser.GetValuesCount(), 3);
+    int i = parser.GetValue<int>("int");
+    EXPECT_EQ(i, 5);
+    bool b = parser.GetValue<bool>("bool");
+    EXPECT_EQ(b, false);
+    std::string s = parser.GetValue<std::string>("STRING");
+    EXPECT_EQ(s, "default");
 }

@@ -68,9 +68,9 @@ int main(int argc, char *argv[]) {
     CommandLineArgsParser::Option opt2{CommandLineArgsParser::ValueType::INT};
     CommandLineArgsParser::Option opt3{CommandLineArgsParser::ValueType::NOVAL};
     std::unordered_map<std::string, CommandLine::CommandLineArgsParser::Option> options{
-        {"--directory", opt1},
-        {"--timeout", opt2},
-        // {"--debug", opt3}
+        {"directory", opt1},
+        {"timeout", opt2},
+        // {"debug", opt3}
     };
     CommandLineArgsParser parser(options);
 
@@ -79,8 +79,8 @@ int main(int argc, char *argv[]) {
     try
     {
         parser.Parse(argc, (const char**)argv);
-        directory = parser.GetValue<std::string>("--directory");
-        timeout = parser.GetValue<uint32_t>("--timeout");
+        directory = parser.GetValue<std::string>("directory");
+        timeout = parser.GetValue<uint32_t>("timeout");
     }
     catch(const std::exception& e)
     {
