@@ -23,10 +23,10 @@ set(HEADERS
 )
 find_package(ZLIB REQUIRED)
 find_package(jsoncpp REQUIRED)
-add_executable(crc32demon ${SOURCE} ${HEADERS} )
-target_compile_features(crc32demon PRIVATE cxx_std_17)
+add_executable(crc32daemon ${SOURCE} ${HEADERS} )
+target_compile_features(crc32daemon PRIVATE cxx_std_17)
 
-target_link_libraries(crc32demon PRIVATE ZLIB::ZLIB jsoncpp_lib)
+target_link_libraries(crc32daemon PRIVATE ZLIB::ZLIB jsoncpp_lib)
 
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")

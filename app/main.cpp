@@ -13,10 +13,10 @@
 #include "timeout_worker.h"
 
 volatile sig_atomic_t do_shutdown = 0;
-// gracefull shutdown 
-void signal_handler(int status)
+// per-thread ?
+void termHandler(int signal)
 {
-    do_shutdown = status;
+    do_shutdown = signal;
 }
 
 void signalHandler(int signal) {
@@ -34,12 +34,10 @@ void signalHandler(int signal) {
 int daemonize() {
     // Fork off the parent process
     pid_t pid = fork();
-    if (pid < 0) {
+    if (pid < 0)
         exit(EXIT_FAILURE);
-    }
-    if (pid > 0) {
+    if (pid > 0)
         exit(EXIT_SUCCESS);
-    }
 
     // Change the file mode mask
     // Since the child process is a daemon, the umask needs to be set so files and logs can be written
@@ -81,9 +79,13 @@ int main(int argc, char *argv[]) {
     };
     CommandLineArgsParser parser(options);
 
+    std::string directory;
+    uint32_t timeout;
     try
     {
         parser.Parse(argc, (const char**)argv);
+        directory = parser.GetValue<std::string>("--directory");
+        timeout = parser.GetValue<uint32_t>("--timeout");
     }
     catch(const std::exception& e)
     {
@@ -91,50 +93,46 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    std::string directory = parser.GetValue<std::string>("--directory");
-    int timeout = parser.GetValue<uint32_t>("--timeout");
-
     // Start the daemon
     daemonize();
 
     // Set signal handlers
-    if (std::signal(SIGTERM, signal_handler) == SIG_ERR)  
+    std::signal(SIGTERM, termHandler);
        return -1;
     std::signal(SIGQUIT, SIG_IGN);
     std::signal(SIGINT, SIG_IGN);
     std::signal(SIGHUP, SIG_IGN);
     std::signal(SIGSTOP, SIG_IGN);
     std::signal(SIGCONT, SIG_IGN);
-    int opt   = 0;
-    int index = 0;
-    std::string dir;
 
-    static struct option long_options[] =
+    std::shared_ptr<Queue::EventQueue> queue = std::make_shared<Queue::EventQueue>(std::make_unique<Worker::ChecksumWorker>());
+    INotifier::INotifyHandler notifyhandler(directory, queue);
+    try
     {
-        {"directory", optional_argument, 0, 'd'},
-        {"version",   no_argument,       0, 'v'},
-        {0, 0, 0, 0}                           
-    };
-
-    while ((opt = getopt_long(argc, argv, "d:v", long_options, &index)) != -1) {
-        switch(opt) {
-        // -d, --directory <directory name> dir path
-        case 'd':
-        {
-            std::cout << optarg << std::endl;
-            dir = optarg;
-        }
-            break;
-        case 'v':
-            std::cout << "Version: " << std::endl;
-            return 0;
-        case 0: // long option without a short arg
-            break;
-        default:
-            std::cout << "Incorrect prompt parameters";
-            return 1;
-        }
+        notifyhandler.Init();
     }
+    catch(const std::exception& e)
+    {
+        logger->writeLog(e.what());
+        return -1;
+    }
+
+    Timeout::TimeoutWorker timeoutWorker(timeout, directory, queue);
+    std::vector<std::thread> threads;
+    threads.emplace_back(std::thread(&Queue::EventQueue::Start, queue));
+    threads.emplace_back(std::thread(&INotifier::INotifyHandler::Start, &notifyhandler));
+    threads.emplace_back(std::thread(&Timeout::TimeoutWorker::Start, &timeoutWorker));
+ 
+    // just yield, main thread just for stopping others
+    while (!do_shutdown)
+        std::this_thread::yield();
+
+    timeoutWorker.Stop();
+    notifyhandler.Stop();
+    queue->Stop();
+
+    for (auto& t : threads)
+        t.join();
     
     return 0;
 }
