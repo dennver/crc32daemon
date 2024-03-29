@@ -1,7 +1,13 @@
-#include <stdint.h>
-#include <stddef.h>
+#include "crc32.h"
 
-unsigned int CRC32_function(unsigned char *buf, unsigned long len)
+#include <fstream>
+#include <map>
+#include <mutex>
+#include <thread>
+#include <vector>
+#include <zlib.h>
+
+unsigned int crc32Function(unsigned char *buf, unsigned long len)
 {
 	unsigned long crc_table[256];
 	unsigned long crc;
@@ -9,13 +15,31 @@ unsigned int CRC32_function(unsigned char *buf, unsigned long len)
 	{
 		crc = i;
 		for (int j = 0; j < 8; j++)
-			crc = crc & 1 ? (crc >> 1) ^ 0xEDB88320UL : crc >> 1;
+			crc = crc & 1 ? (crc >> 1) ^ 0xEDB88320UL : crc >> 1; // CRC-32 polynomial from zlib
 		crc_table[i] = crc;
 	};
 	crc = 0xFFFFFFFFUL;
 	while (len--)
 	crc = crc_table[(crc ^ *buf++) & 0xFF] ^ (crc >> 8);
 	return crc ^ 0xFFFFFFFFUL;
+}
+
+uint32_t crc32Combine(uint32_t crc1, uint32_t crc2, uint32_t len2)
+{
+    const uint32_t poly = 0xEDB88320UL; // CRC-32 polynomial from zlib
+    uint32_t term1 = (crc1 ^ crc2) & 0xFFFFFFFFUL;
+    uint32_t rem = 0;
+
+    for (uint32_t i = 0; i < 32; i++)
+	{
+        rem = (rem >> 1) ^ ((rem & 1) ? poly : 0);
+        if (term1 & 1) {
+            rem ^= crc2;
+        }
+        term1 >>= 1;
+    }
+
+    return crc1 ^ crc2 ^ rem;
 }
 
 const uint32_t crc32_tab[] = {
@@ -64,13 +88,75 @@ const uint32_t crc32_tab[] = {
 	0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
-uint32_t crc32(unsigned char *buf, size_t size)
+uint32_t crc32WithTable(char* buf, size_t len)
 {
-    const uint8_t *p = buf;
-    uint32_t crc;
+    uint32_t x = ~0U;
+    for (int i = 0; i < len; ++i) {
+        const uint8_t c = buf[i];
+        x = crc32_tab[(x ^ c) & 0xff] ^ (x >> 8);
+    }
+    return ~x;
+}
 
-    crc = ~0U;
-    while (size--)
-        crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
-    return crc ^ ~0U;
+std::uint32_t calculateCRC32Parallel(const std::string& filename, size_t chunkSize, uint32_t threadCount)
+{
+	threadCount = std::thread::hardware_concurrency() < threadCount ? std::thread::hardware_concurrency() : threadCount;
+    std::ifstream file(filename, std::ifstream::ate | std::ios::binary);
+    if (!file.is_open())
+    {
+        // std::cerr << "Error opening file: " << filename << std::endl;		
+        return 0;
+    }
+    const size_t fileSize = file.tellg();
+	file.close();
+
+    // Calculate number of chunks to distribute the work among threads
+    const size_t numChunks = fileSize / chunkSize + (fileSize % chunkSize ? 1 : 0); // oh my
+
+    std::mutex mutex;
+    std::uint32_t finalResult = crc32(0L, Z_NULL, 0);
+
+    size_t chunksProcessed = 0;
+	while (chunksProcessed < numChunks)
+	{
+		std::map<uint32_t, std::pair<uint32_t, uint32_t> > chunkResults;
+		const auto chunksLeft = numChunks - chunksProcessed;
+		const auto maxThreads = threadCount < chunksLeft ? threadCount : chunksLeft;
+		std::vector<std::thread> threads;
+
+		for (size_t i = 0; i < maxThreads; ++i)
+		{
+			const size_t offset = chunksProcessed++ * chunkSize;
+			const size_t bytesLeft = fileSize - offset;
+			const size_t thisChunkSize = bytesLeft > chunkSize ? chunkSize : bytesLeft;
+			
+			threads.emplace_back([i, &chunkResults, filename, offset, thisChunkSize, &mutex]()->void
+			{
+				std::ifstream file(filename, std::ios::binary);
+				if (!file.is_open())
+				{
+					//stop it
+					// std::cerr << "Error opening file: " << filename << std::endl;
+					return;
+				}
+
+				file.seekg(offset);
+				char buffer[thisChunkSize];
+				file.read(buffer, thisChunkSize); // good()?
+				file.close();
+
+				std::uint32_t crc = crc32(0L, Z_NULL, 0);
+				crc = crc32(crc, reinterpret_cast<const Bytef*>(buffer), thisChunkSize);
+                std::lock_guard<std::mutex> l(mutex);
+				chunkResults[i] = {crc, thisChunkSize};
+			});
+		}
+		for (auto& t : threads)
+			t.join();
+		//  calculate CRC32 of all chunk results
+		for (const auto& result : chunkResults)
+			finalResult = crc32_combine(finalResult, result.second.first, result.second.second);
+	}
+
+	return finalResult;
 }
